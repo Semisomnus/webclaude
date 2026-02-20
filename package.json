@@ -1,0 +1,21 @@
+{
+  "name": "webclaude",
+  "version": "1.0.0",
+  "description": "Beautiful local chat interface for Claude and Codex",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["claude", "codex", "chat", "ai", "local"],
+  "author": "Semisomnus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Semisomnus/webclaude.git"
+  },
+  "dependencies": {
+    "cross-spawn": "^7.0.6",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}

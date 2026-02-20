@@ -1,0 +1,9 @@
+node_modules/
+conversations/
+uploads/
+.claude/
+cli-params.json
+*.log
+.env
+.DS_Store
+Thumbs.db

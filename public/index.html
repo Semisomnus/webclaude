@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebClaude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+<style>
+:root {
+  --bg-primary: #2f2b26;
+  --bg-secondary: #393530;
+  --bg-tertiary: #45413a;
+  --bg-hover: #504b44;
+  --bg-message: #393530;
+  --bg-user-msg: #4a4540;
+  --border: #554f47;
+  --border-light: #6b6459;
+  --text-primary: #ece5d8;
+  --text-secondary: #b5ad9e;
+  --text-muted: #8a8279;
+  --accent: #d4a574;
+  --accent-hover: #e0b68a;
+  --accent-dim: rgba(212,165,116,0.15);
+  --accent-glow: rgba(212,165,116,0.08);
+  --green: #a8c78a;
+  --red: #d98a8a;
+  --orange: #dbb07a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.2);
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+  z-index: 20;
+}
+#sidebar.collapsed { width: 0; min-width: 0; overflow: hidden; border: none; }
+
+.sidebar-header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+
+.sidebar-list { flex: 1; overflow-y: auto; padding: 8px; }
+.conv-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.conv-item:hover { background: var(--bg-hover); }
+.conv-item.active { background: var(--accent-dim); border-left: 3px solid var(--accent); padding-left: 9px; }
+.conv-item .title {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.conv-item .delete-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+.conv-item:hover .delete-btn { opacity: 0.7; }
+.conv-item:hover .delete-btn:hover { opacity: 1; }
+
+/* ===== BUTTONS ===== */
+.icon-btn {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: var(--transition);
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ===== MAIN ===== */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* Top bar */
+#topbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+#topbar select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+.topbar-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+/* ===== CHAT WRAPPER ===== */
+#chat-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+/* Glass fade */
+#chat-wrapper::before,
+#chat-wrapper::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 48px;
+  z-index: 5;
+  pointer-events: none;
+}
+#chat-wrapper::before {
+  top: 0;
+  background: linear-gradient(to bottom, var(--bg-primary) 0%, transparent 100%);
+}
+#chat-wrapper::after {
+  bottom: 0;
+  background: linear-gradient(to top, var(--bg-primary) 0%, transparent 100%);
+}
+
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 0;
+  scroll-behavior: smooth;
+}
+.messages-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ===== WELCOME ===== */
+#welcome-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#welcome-state.hidden { display: none; }
+.welcome-logo {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin-bottom: 6px;
+  color: var(--accent);
+}
+.welcome-sub {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 40px;
+}
+#welcome-input-area {
+  width: 100%;
+  max-width: 740px;
+}
+
+/* ===== CONV STATE ===== */
+#conv-state {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+#conv-state.active { display: flex; }
+
+/* ===== MESSAGES ===== */
+.message {
+  margin-bottom: 28px;
+  animation: fadeIn 0.35s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.msg-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.msg-avatar.user {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.msg-avatar.assistant {
+  background: rgba(168,199,138,0.15);
+  color: var(--green);
+}
+.msg-content { flex: 1; min-width: 0; }
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.msg-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.msg-name.user { color: var(--accent); }
+.msg-name.assistant { color: var(--green); }
+.msg-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.msg-body {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--text-primary);
+}
+.msg-body p { margin-bottom: 12px; }
+.msg-body p:last-child { margin-bottom: 0; }
+.msg-body ul, .msg-body ol { margin: 8px 0; padding-left: 20px; }
+.msg-body li { margin-bottom: 4px; }
+.msg-body code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  background: rgba(0,0,0,0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+.msg-body pre {
+  margin: 12px 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #1e1e1e;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.msg-body pre code {
+  display: block;
+  padding: 14px 16px;
+  background: transparent;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #d4d4d4;
+}
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 14px;
+  background: rgba(0,0,0,0.3);
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.copy-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.copy-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+.msg-body blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+  margin: 10px 0;
+  color: var(--text-secondary);
+}
+.msg-body a { color: var(--accent); text-decoration: none; }
+.msg-body a:hover { text-decoration: underline; }
+.msg-body table { border-collapse: collapse; margin: 10px 0; width: 100%; }
+.msg-body th, .msg-body td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+}
+.msg-body th { background: var(--bg-tertiary); font-weight: 600; }
+
+/* Action bar under assistant messages */
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+  opacity: 0.5;
+  transition: var(--transition);
+}
+.message:hover .msg-actions { opacity: 1; }
+.msg-action-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.msg-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.msg-action-btn.accepted { color: var(--green); }
+.msg-action-btn.rejected { color: var(--red); }
+.msg-action-btn svg { width: 14px; height: 14px; }
+
+/* ===== INPUT ===== */
+.input-area {
+  padding: 12px 24px 20px;
+  max-width: 808px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 6;
+}
+.input-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 8px 12px 8px 16px;
+  transition: var(--transition);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+.input-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 2px 20px rgba(212,165,116,0.12), 0 0 0 1px rgba(212,165,116,0.08);
+}
+.input-box textarea {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  max-height: 200px;
+  min-height: 28px;
+  padding: 4px 0;
+}
+.input-box textarea::placeholder { color: var(--text-muted); }
+
+.send-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: var(--bg-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+.send-btn:hover { background: var(--accent-hover); }
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.send-btn svg { width: 16px; height: 16px; }
+
+.upload-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+.upload-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.image-preview-bar { display: flex; gap: 8px; padding: 8px 0 0; flex-wrap: wrap; }
+.image-preview-item {
+  position: relative;
+  width: 52px; height: 52px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.image-preview-item .remove-img {
+  position: absolute; top: 2px; right: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  color: white; border: none; cursor: pointer;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ===== TOOLS PANEL ===== */
+#tools-panel {
+  width: 0; overflow: hidden;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  transition: var(--transition);
+  display: flex; flex-direction: column;
+}
+#tools-panel.open { width: 380px; }
+
+.panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-header h3 { font-size: 14px; font-weight: 600; }
+
+.panel-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.panel-tab {
+  flex: 1; padding: 10px;
+  text-align: center; font-size: 12px; font-weight: 500;
+  color: var(--text-muted); cursor: pointer;
+  border: none; border-bottom: 2px solid transparent;
+  background: none; font-family: inherit;
+  transition: var(--transition);
+}
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.panel-content { flex: 1; overflow-y: auto; padding: 16px; }
+.panel-section { display: none; }
+.panel-section.active { display: block; }
+
+.editor-area {
+  width: 100%;
+  min-height: 200px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px;
+  resize: vertical;
+  outline: none;
+  transition: var(--transition);
+}
+.editor-area:focus { border-color: var(--accent); }
+.editor-area.mono { font-family: 'JetBrains Mono', monospace; min-height: 280px; }
+
+.param-group { margin-bottom: 14px; }
+.param-label {
+  font-size: 12px; font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px; display: block;
+}
+.param-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+}
+.param-input:focus { border-color: var(--accent); }
+
+.save-btn {
+  padding: 7px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: var(--bg-primary);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 10px;
+}
+.save-btn:hover { background: var(--accent-hover); }
+
+.status-toast {
+  position: fixed; bottom: 24px; right: 24px;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 13px;
+  z-index: 100;
+  animation: fadeIn 0.3s ease;
+}
+
+.streaming-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@media (max-width: 768px) {
+  #sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; }
+  #sidebar.collapsed { width: 0; }
+  #tools-panel.open { width: 100%; position: fixed; right: 0; top: 0; bottom: 0; z-index: 30; }
+}
+
+/* Conversation summary bar */
+.conv-summary {
+  padding: 8px 24px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conv-summary.visible { display: block; }
+
+/* Topbar title */
+.topbar-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Sidebar model tag and time */
+.conv-item .conv-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.conv-item .conv-time {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.conv-item .conv-model-tag {
+  font-size: 9px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 1px 5px;
+  border-radius: 3px;
+  display: inline-block;
+  max-width: fit-content;
+  margin-top: 2px;
+}
+
+/* Auto-approved status in tool block */
+.tool-auto-approved {
+  padding: 6px 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 11px;
+  color: var(--green);
+  background: rgba(168,199,138,0.05);
+}
+
+/* ===== AGENTIC TOOL BLOCKS ===== */
+.agentic-container .text-segment {
+  margin-bottom: 8px;
+}
+.tool-block {
+  background: rgba(0,0,0,0.2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin: 12px 0;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  transition: box-shadow 0.2s ease;
+}
+.tool-block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.tool-block.error { border-left-color: var(--red); }
+.tool-block.waiting { border-left-color: var(--orange); }
+.tool-block.cancelled { border-left-color: var(--text-muted); opacity: 0.6; }
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+.tool-header:hover { background: rgba(255,255,255,0.03); }
+.tool-header .tool-icon {
+  font-size: 12px;
+  color: var(--accent);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.tool-header .tool-name { flex: 1; }
+.tool-header .tool-status {
+  font-size: 11px;
+  font-weight: 400;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.tool-status.running {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.tool-status.done {
+  color: var(--green);
+  background: rgba(168,199,138,0.15);
+}
+.tool-status.error {
+  color: var(--red);
+  background: rgba(217,138,138,0.15);
+}
+.tool-status.waiting {
+  color: var(--orange);
+  background: rgba(219,176,122,0.15);
+}
+.tool-status.cancelled {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+}
+.tool-detail {
+  display: none;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.tool-detail.open { display: block; }
+.tool-input, .tool-output {
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.tool-input { background: rgba(0,0,0,0.15); }
+.tool-output { background: rgba(0,0,0,0.1); border-top: 1px solid rgba(255,255,255,0.03); }
+.tool-output.error-output { color: var(--red); }
+.tool-confirm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: rgba(219,176,122,0.05);
+  animation: slideDown 0.25s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; padding: 0 12px; }
+  to { opacity: 1; max-height: 60px; padding: 10px 12px; }
+}
+.tool-confirm-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.tool-confirm-btn.accept {
+  background: rgba(168,199,138,0.15);
+  color: var(--green);
+  border-color: rgba(168,199,138,0.3);
+}
+.tool-confirm-btn.accept:hover { background: rgba(168,199,138,0.25); }
+.tool-confirm-btn.accept-session {
+  background: rgba(130,170,220,0.15);
+  color: #8ab4d8;
+  border-color: rgba(130,170,220,0.3);
+}
+.tool-confirm-btn.accept-session:hover { background: rgba(130,170,220,0.25); }
+.tool-confirm-btn.accept-all {
+  background: rgba(168,199,138,0.1);
+  color: var(--green);
+  border-color: rgba(168,199,138,0.25);
+}
+.tool-confirm-btn.accept-all:hover { background: rgba(168,199,138,0.2); }
+.tool-confirm-btn.reject {
+  background: rgba(217,138,138,0.1);
+  color: var(--red);
+  border-color: rgba(217,138,138,0.3);
+}
+.tool-confirm-btn.reject:hover { background: rgba(217,138,138,0.2); }
+.tool-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.result-info {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.result-info span { display: flex; align-items: center; gap: 4px; }
+.tool-chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+.tool-detail.open ~ .tool-header .tool-chevron,
+.tool-block.expanded .tool-chevron { transform: rotate(90deg); }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <h2>对话列表</h2>
+    <button class="icon-btn" onclick="newConversation()" title="新建对话">+</button>
+  </div>
+  <div class="sidebar-list" id="conv-list"></div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <button class="icon-btn" onclick="toggleSidebar()" title="切换侧栏">&#9776;</button>
+    <select id="model-select"></select>
+    <span class="topbar-title" id="topbar-title"></span>
+    <div class="topbar-right">
+      <button class="icon-btn" onclick="togglePanel()" title="设置">&#9881;</button>
+    </div>
+  </div>
+
+  <div id="chat-wrapper">
+    <!-- 欢迎页 -->
+    <div id="welcome-state">
+      <div class="welcome-logo">WebClaude</div>
+      <div class="welcome-sub">本地 AI 对话界面</div>
+      <div id="welcome-input-area">
+        <div class="input-area" style="padding:0;">
+          <div class="input-box">
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()" title="上传图片">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <textarea id="welcome-textarea" rows="2" placeholder="输入消息..." onkeydown="handleWelcomeKey(event)" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" onclick="sendFromWelcome()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div class="image-preview-bar" id="welcome-img-preview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 对话区 -->
+    <div id="conv-state">
+      <div id="conv-summary" class="conv-summary"></div>
+      <div id="messages"><div class="messages-inner" id="messages-inner"></div></div>
+      <div class="input-area">
+        <div class="input-box">
+          <button class="upload-btn" onclick="document.getElementById('file-input').click()" title="上传图片">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <textarea id="chat-textarea" rows="1" placeholder="输入消息..." onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div class="image-preview-bar" id="chat-img-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 设置面板 -->
+<div id="tools-panel">
+  <div class="panel-header">
+    <h3>设置</h3>
+    <button class="icon-btn" onclick="togglePanel()">&times;</button>
+  </div>
+  <div class="panel-tabs">
+    <button class="panel-tab active" onclick="switchTab('tab-system')">系统提示词</button>
+    <button class="panel-tab" onclick="switchTab('tab-claude-md')">CLAUDE.md</button>
+    <button class="panel-tab" onclick="switchTab('tab-params')">CLI 参数</button>
+  </div>
+  <div class="panel-content">
+    <div class="panel-section active" id="tab-system">
+      <label class="param-label">系统提示词（每次对话前置）</label>
+      <textarea class="editor-area" id="system-prompt" placeholder="你是一个有帮助的助手..."></textarea>
+      <button class="save-btn" onclick="saveSystemPrompt()">保存</button>
+    </div>
+    <div class="panel-section" id="tab-claude-md">
+      <label class="param-label">CLAUDE.md 文件内容</label>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" id="claude-md-path"></div>
+      <textarea class="editor-area mono" id="claude-md-content" placeholder="# CLAUDE.md&#10;&#10;在此编写项目指令..."></textarea>
+      <button class="save-btn" onclick="saveClaudeMd()">保存</button>
+    </div>
+    <div class="panel-section" id="tab-params">
+      <div class="param-group">
+        <label class="param-label">额外 CLI 参数（每行一个）</label>
+        <textarea class="param-input" id="extra-args" rows="4" style="min-height:80px;resize:vertical;" placeholder="--allowedTools&#10;--max-turns 5"></textarea>
+      </div>
+      <div class="param-group">
+        <label class="param-label">工作目录（可选）</label>
+        <input class="param-input" id="work-dir" placeholder="例如 C:\projects\myapp">
+      </div>
+      <button class="save-btn" onclick="saveCliParams()">保存</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="handleFileSelect(event)">
+
+<script>
+// ===== STATE =====
+let conversations = {};
+let currentConvId = null;
+let ws = null;
+let isStreaming = false;
+let streamingConvId = null;  // Track which conversation is currently streaming
+let pendingImages = [];
+let modelsConfig = {};
+let systemPrompt = '';
+let claudeMdPath = '';
+
+
+// Session-level permission state (reset on new conversation)
+let sessionPermissions = {
+  allowAll: false,
+  allowedTools: new Set()
+};
+
+// Tool name Chinese mapping
+const TOOL_NAMES = {
+  Read: '读取文件', Write: '写入文件', Edit: '编辑文件',
+  Bash: '执行命令', Glob: '搜索文件', Grep: '搜索内容',
+  WebFetch: '获取网页', WebSearch: '搜索网络',
+  Task: '子任务', TodoWrite: '写入待办',
+  NotebookEdit: '编辑笔记本'
+};
+
+function getToolDisplayName(name) {
+  return TOOL_NAMES[name] || name;
+}
+
+
+// ===== INIT =====
+async function init() {
+  try {
+    const res = await fetch('/api/models');
+    modelsConfig = await res.json();
+  } catch { modelsConfig = {}; }
+  populateModelSelect();
+
+  try {
+    const res = await fetch('/api/conversations');
+    const list = await res.json();
+    list.forEach(c => { conversations[c.id] = c; });
+  } catch {}
+  renderConvList();
+
+  systemPrompt = localStorage.getItem('systemPrompt') || '';
+  document.getElementById('system-prompt').value = systemPrompt;
+
+  try {
+    const res = await fetch('/api/claude-md');
+    const data = await res.json();
+    claudeMdPath = data.path || '';
+    document.getElementById('claude-md-path').textContent = claudeMdPath;
+    document.getElementById('claude-md-content').value = data.content || '';
+  } catch {}
+
+  try {
+    const res = await fetch('/api/cli-params');
+    const data = await res.json();
+    if (data.extraArgs) document.getElementById('extra-args').value = data.extraArgs.join('\n');
+    if (data.workDir) document.getElementById('work-dir').value = data.workDir;
+  } catch {}
+
+  connectWS();
+}
+
+function getCurrentAIName() {
+  const model = document.getElementById('model-select').value;
+  for (const cfg of Object.values(modelsConfig)) {
+    if ((cfg.models || []).includes(model)) return cfg.label || 'AI';
+  }
+  return 'AI';
+}
+
+function populateModelSelect() {
+  const sel = document.getElementById('model-select');
+  sel.innerHTML = '';
+  for (const [provider, cfg] of Object.entries(modelsConfig)) {
+    const group = document.createElement('optgroup');
+    group.label = cfg.label || provider;
+    (cfg.models || []).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      group.appendChild(opt);
+    });
+    sel.appendChild(group);
+  }
+  const last = localStorage.getItem('lastModel');
+  if (last && sel.querySelector(`option[value="${last}"]`)) sel.value = last;
+}
+
+// ===== WEBSOCKET =====
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {};
+  ws.onclose = () => setTimeout(connectWS, 2000);
+  ws.onerror = () => {};
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      console.log('[ws recv]', msg.type, msg);
+      handleWSMessage(msg);
+    } catch (err) {
+      console.error('[ws parse error]', err, e.data);
+    }
+  };
+}
+
+// ===== AGENTIC RENDERING FUNCTIONS =====
+
+function createAgenticContainer() {
+  const container = document.createElement('div');
+  container.className = 'agentic-container';
+  return container;
+}
+
+function ensureTextSegment(container) {
+  // Get or create the last text segment in the container
+  let last = container.lastElementChild;
+  if (!last || !last.classList.contains('text-segment')) {
+    const seg = document.createElement('div');
+    seg.className = 'text-segment markdown-body';
+    container.appendChild(seg);
+    return seg;
+  }
+  return last;
+}
+
+function appendTextDelta(container, delta) {
+  const seg = ensureTextSegment(container);
+  // Append raw text; we'll render markdown at the end
+  if (!seg._rawText) seg._rawText = '';
+  seg._rawText += delta;
+  seg.innerHTML = marked.parse(seg._rawText);
+  // Highlight code blocks
+  seg.querySelectorAll('pre code').forEach(b => { if (!b._hl) { hljs.highlightElement(b); b._hl = true; } });
+}
+
+function finalizeTextSegments(container) {
+  container.querySelectorAll('.text-segment').forEach(seg => {
+    if (seg._rawText) {
+      seg.innerHTML = marked.parse(seg._rawText);
+      seg.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+    }
+  });
+}
+
+function appendToolBlock(container, data) {
+  const block = document.createElement('div');
+  block.className = 'tool-block';
+  const toolUseId = data.tool_use_id || data.id || '';
+  const toolName = data.name || '';
+  block.dataset.toolUseId = toolUseId;
+  block.dataset.toolName = toolName;
+
+  // Check session permissions to decide if we auto-approve or show prompt
+  const autoApprove = sessionPermissions.allowAll || sessionPermissions.allowedTools.has(toolName);
+  const statusClass = autoApprove ? 'running' : 'waiting';
+  const statusText = autoApprove ? '自动批准' : '等待确认';
+  if (!autoApprove) block.classList.add('waiting');
+
+  const inputStr = typeof data.input === 'string' ? data.input : JSON.stringify(data.input, null, 2);
+
+  block.innerHTML = `
+    <div class="tool-header" onclick="toggleToolDetail(this)">
+      <span class="tool-chevron">▶</span>
+      <span class="tool-icon">⚙</span>
+      <span class="tool-name">${getToolDisplayName(toolName)}</span>
+      <span class="tool-status ${statusClass}">${statusText}</span>
+    </div>
+    <div class="tool-detail">
+      <div class="tool-input">${escapeHtml(inputStr)}</div>
+      <div class="tool-output" style="display:none;"></div>
+    </div>
+  `;
+
+  if (autoApprove) {
+    // Auto-approve: send approved immediately, show status
+    const autoBar = document.createElement('div');
+    autoBar.className = 'tool-auto-approved';
+    autoBar.textContent = sessionPermissions.allowAll ? '✓ 已自动批准（全部自动执行）' : `✓ 已自动批准（${getToolDisplayName(toolName)}）`;
+    block.appendChild(autoBar);
+    sendToolResponse(toolUseId, true);
+  } else {
+    // Show 4-button permission bar
+    const confirmBar = document.createElement('div');
+    confirmBar.className = 'tool-confirm-bar';
+    confirmBar.innerHTML = `
+      <button class="tool-confirm-btn accept" onclick="approveOnce('${toolUseId}', this)">✓ 允许一次</button>
+      <button class="tool-confirm-btn accept-session" onclick="approveToolType('${toolUseId}', '${toolName}', this)">✓ 允许同类操作</button>
+      <button class="tool-confirm-btn accept-all" onclick="approveAll('${toolUseId}', this)">✓ 全部自动执行</button>
+      <button class="tool-confirm-btn reject" onclick="rejectTool('${toolUseId}', this)">✗ 拒绝</button>
+    `;
+    block.appendChild(confirmBar);
+  }
+
+  container.appendChild(block);
+  return block;
+}
+
+function updateToolInput(container, toolUseId, partialJson) {
+  const block = container.querySelector(`.tool-block[data-tool-use-id="${toolUseId}"]`);
+  if (!block) return;
+  const inputEl = block.querySelector('.tool-input');
+  if (inputEl) {
+    if (!inputEl._rawInput) inputEl._rawInput = '';
+    inputEl._rawInput += partialJson;
+    inputEl.textContent = inputEl._rawInput;
+  }
+}
+
+function updateToolResult(container, data) {
+  const block = container.querySelector(`.tool-block[data-tool-use-id="${data.tool_use_id}"]`);
+  if (!block) return;
+  block.classList.remove('waiting');
+  const statusEl = block.querySelector('.tool-status');
+  if (data.is_error) {
+    block.classList.add('error');
+    statusEl.className = 'tool-status error';
+    statusEl.textContent = '错误';
+  } else {
+    statusEl.className = 'tool-status done';
+    statusEl.textContent = '完成';
+  }
+  const outputEl = block.querySelector('.tool-output');
+  if (outputEl && data.output) {
+    outputEl.style.display = '';
+    outputEl.textContent = data.output;
+    if (data.is_error) outputEl.classList.add('error-output');
+  }
+  // Remove confirm bar if present
+  const confirmBar = block.querySelector('.tool-confirm-bar');
+  if (confirmBar) confirmBar.remove();
+}
+
+function toggleToolDetail(headerEl) {
+  const detail = headerEl.nextElementSibling;
+  if (detail && detail.classList.contains('tool-detail')) {
+    detail.classList.toggle('open');
+    const chevron = headerEl.querySelector('.tool-chevron');
+    if (chevron) {
+      chevron.style.transform = detail.classList.contains('open') ? 'rotate(90deg)' : '';
+    }
+  }
+}
+
+function appendResultInfo(container, data) {
+  const info = document.createElement('div');
+  info.className = 'result-info';
+  let parts = [];
+  if (data.cost != null) parts.push(`<span>💰 $${Number(data.cost).toFixed(4)}</span>`);
+  if (data.duration != null) parts.push(`<span>⏱ ${(Number(data.duration) / 1000).toFixed(1)}s</span>`);
+  if (data.turns != null) parts.push(`<span>🔄 ${data.turns} turns</span>`);
+  info.innerHTML = parts.join('');
+  container.appendChild(info);
+}
+
+function sendToolResponse(toolUseId, approved) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'tool_response', tool_use_id: toolUseId, approved }));
+}
+
+function resolveToolBlock(toolUseId, approved, label, btnEl) {
+  // Update confirm bar
+  const bar = btnEl ? btnEl.closest('.tool-confirm-bar') : null;
+  if (bar) {
+    bar.innerHTML = approved
+      ? `<span style="color:var(--green);font-size:12px;">✓ ${label}</span>`
+      : `<span style="color:var(--red);font-size:12px;">✗ ${label}</span>`;
+  }
+  // Update block status
+  const block = btnEl ? btnEl.closest('.tool-block') : document.querySelector(`.tool-block[data-tool-use-id="${toolUseId}"]`);
+  if (block) {
+    block.classList.remove('waiting');
+    const statusEl = block.querySelector('.tool-status');
+    if (statusEl) {
+      if (approved) {
+        statusEl.className = 'tool-status running';
+        statusEl.textContent = '运行中';
+      } else {
+        statusEl.className = 'tool-status cancelled';
+        statusEl.textContent = '已拒绝';
+        block.classList.add('cancelled');
+      }
+    }
+  }
+}
+
+function approveOnce(toolUseId, btnEl) {
+  sendToolResponse(toolUseId, true);
+  resolveToolBlock(toolUseId, true, '已允许（一次）', btnEl);
+}
+
+function approveToolType(toolUseId, toolName, btnEl) {
+  sessionPermissions.allowedTools.add(toolName);
+  sendToolResponse(toolUseId, true);
+  resolveToolBlock(toolUseId, true, `已允许（同类：${getToolDisplayName(toolName)}）`, btnEl);
+  // Auto-approve any other pending blocks of the same tool type
+  autoApprovePending(toolName);
+}
+
+function approveAll(toolUseId, btnEl) {
+  sessionPermissions.allowAll = true;
+  sendToolResponse(toolUseId, true);
+  resolveToolBlock(toolUseId, true, '已允许（全部自动执行）', btnEl);
+  // Auto-approve all pending tool blocks
+  autoApprovePending();
+}
+
+function rejectTool(toolUseId, btnEl) {
+  sendToolResponse(toolUseId, false);
+  resolveToolBlock(toolUseId, false, '已拒绝', btnEl);
+}
+
+function autoApprovePending(toolName) {
+  // Find all waiting tool blocks and auto-approve matching ones
+  document.querySelectorAll('.tool-block.waiting').forEach(block => {
+    const id = block.dataset.toolUseId;
+    const name = block.dataset.toolName;
+    if (!id) return;
+    if (sessionPermissions.allowAll || (toolName && name === toolName)) {
+      sendToolResponse(id, true);
+      block.classList.remove('waiting');
+      const statusEl = block.querySelector('.tool-status');
+      if (statusEl) { statusEl.className = 'tool-status running'; statusEl.textContent = '自动批准'; }
+      const bar = block.querySelector('.tool-confirm-bar');
+      if (bar) bar.innerHTML = `<span style="color:var(--green);font-size:12px;">✓ 已自动批准</span>`;
+    }
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Track current agentic container and tool input accumulator
+let currentAgenticContainer = null;
+let currentToolInputAccum = {};
+
+function handleWSMessage(msg) {
+  if (!currentConvId) return;
+  // Ignore messages from a stale conversation
+  if (streamingConvId && streamingConvId !== currentConvId) {
+    if (msg.type === 'end') {
+      // Reset streaming state for stale end events
+      isStreaming = false;
+      streamingConvId = null;
+      updateSendBtn();
+    }
+    return;
+  }
+  const conv = conversations[currentConvId];
+  if (!conv) return;
+
+  switch (msg.type) {
+    case 'stream':
+      // Raw text streaming (codex, raw claude mode)
+      if (!conv._streamBuf) {
+        conv._streamBuf = '';
+        conv._streamMsgEl = appendMessage('assistant', '', true);
+      }
+      conv._streamBuf += msg.data;
+      updateStreamMessage(conv._streamMsgEl, conv._streamBuf);
+      break;
+
+    case 'text_delta':
+      // Agentic mode: text delta
+      if (!conv._streamMsgEl) {
+        conv._streamBuf = '';
+        conv._streamMsgEl = appendMessage('assistant', '', true);
+        currentAgenticContainer = createAgenticContainer();
+        const body1 = conv._streamMsgEl.querySelector('.msg-body');
+        body1.innerHTML = '';
+        body1.appendChild(currentAgenticContainer);
+        conv._agenticBlocks = [];
+      }
+      if (!currentAgenticContainer) {
+        currentAgenticContainer = createAgenticContainer();
+        const body1b = conv._streamMsgEl.querySelector('.msg-body');
+        body1b.innerHTML = '';
+        body1b.appendChild(currentAgenticContainer);
+      }
+      conv._streamBuf += msg.data;
+      appendTextDelta(currentAgenticContainer, msg.data);
+      break;
+
+    case 'tool_use':
+      // Agentic mode: tool call started
+      if (!conv._streamMsgEl) {
+        conv._streamBuf = '';
+        conv._streamMsgEl = appendMessage('assistant', '', true);
+        currentAgenticContainer = createAgenticContainer();
+        const body2 = conv._streamMsgEl.querySelector('.msg-body');
+        body2.innerHTML = '';
+        body2.appendChild(currentAgenticContainer);
+        conv._agenticBlocks = [];
+      }
+      if (!currentAgenticContainer) {
+        currentAgenticContainer = createAgenticContainer();
+        const body2b = conv._streamMsgEl.querySelector('.msg-body');
+        body2b.innerHTML = '';
+        body2b.appendChild(currentAgenticContainer);
+      }
+      if (!conv._agenticBlocks) conv._agenticBlocks = [];
+      conv._agenticBlocks.push({ type: 'tool_use', id: msg.tool_use_id, name: msg.name, input: msg.input });
+      appendToolBlock(currentAgenticContainer, msg);
+      // Reset tool input accumulator for streaming input
+      currentToolInputAccum[msg.tool_use_id] = JSON.stringify(msg.input, null, 2);
+      break;
+
+    case 'tool_input_delta':
+      // Streaming tool input JSON delta — update the last tool block's input
+      if (currentAgenticContainer) {
+        const blocks = currentAgenticContainer.querySelectorAll('.tool-block');
+        if (blocks.length > 0) {
+          const lastBlock = blocks[blocks.length - 1];
+          const toolId = lastBlock.dataset.toolUseId;
+          if (toolId) {
+            if (!currentToolInputAccum[toolId]) currentToolInputAccum[toolId] = '';
+            currentToolInputAccum[toolId] += msg.data;
+            const inputEl = lastBlock.querySelector('.tool-input');
+            if (inputEl) inputEl.textContent = currentToolInputAccum[toolId];
+          }
+        }
+      }
+      break;
+
+    case 'tool_result':
+      // Agentic mode: tool result
+      if (currentAgenticContainer) {
+        updateToolResult(currentAgenticContainer, msg);
+      }
+      if (conv._agenticBlocks) {
+        conv._agenticBlocks.push({ type: 'tool_result', id: msg.tool_use_id, output: msg.output, is_error: msg.is_error });
+      }
+      break;
+
+    case 'content_block_stop':
+      // Content block finished — no special handling needed
+      break;
+
+    case 'message_delta':
+      // Message-level delta (stop_reason etc.) — no special handling
+      break;
+
+    case 'result':
+      // Result info received — no display needed
+      break;
+
+    case 'system':
+      // System messages from CLI
+      break;
+
+    case 'assistant_start':
+      // Assistant turn start — no special handling
+      break;
+
+    case 'end':
+      isStreaming = false;
+      streamingConvId = null;
+      updateSendBtn();
+      const finalText = conv._streamBuf || '';
+      if (finalText || (conv._agenticBlocks && conv._agenticBlocks.length > 0)) {
+        conv.history = conv.history || [];
+        const assistantEntry = { role: 'assistant', content: finalText };
+        if (conv._agenticBlocks && conv._agenticBlocks.length > 0) {
+          assistantEntry.blocks = conv._agenticBlocks;
+        }
+        conv.history.push(assistantEntry);
+        if (conv._streamMsgEl) {
+          if (currentAgenticContainer) {
+            finalizeTextSegments(currentAgenticContainer);
+          } else {
+            finalizeAssistantMessage(conv._streamMsgEl, finalText);
+          }
+        }
+      }
+      conv._streamBuf = null;
+      conv._streamMsgEl = null;
+      conv._agenticBlocks = null;
+      currentAgenticContainer = null;
+      currentToolInputAccum = {};
+      if (conv.history.length === 2 && conv.title === '新对话') autoTitle(conv);
+      saveConv(conv);
+      break;
+
+    case 'error':
+      isStreaming = false;
+      streamingConvId = null;
+      updateSendBtn();
+      if (conv._streamMsgEl) {
+        if (currentAgenticContainer) {
+          appendTextDelta(currentAgenticContainer, '\n\n**错误：** ' + msg.data);
+          // Mark any running tool blocks as cancelled
+          currentAgenticContainer.querySelectorAll('.tool-block.waiting, .tool-block:not(.error):not(.cancelled)').forEach(b => {
+            const s = b.querySelector('.tool-status');
+            if (s && (s.classList.contains('running') || s.classList.contains('waiting'))) {
+              s.className = 'tool-status cancelled';
+              s.textContent = '已取消';
+              b.classList.add('cancelled');
+            }
+          });
+        } else {
+          updateStreamMessage(conv._streamMsgEl, (conv._streamBuf||'') + '\n\n**错误：** ' + msg.data);
+        }
+      } else {
+        appendMessage('assistant', '**错误：** ' + msg.data);
+      }
+      conv._streamBuf = null;
+      conv._streamMsgEl = null;
+      conv._agenticBlocks = null;
+      currentAgenticContainer = null;
+      currentToolInputAccum = {};
+      break;
+  }
+  scrollToBottom();
+}
+
+// ===== CONVERSATIONS =====
+function newConversation() {
+  const id = 'conv_' + Date.now();
+  conversations[id] = { id, title: '新对话', history: [], created: Date.now() };
+  sessionPermissions = { allowAll: false, allowedTools: new Set() };
+  streamingConvId = null;
+  isStreaming = false;
+  switchConversation(id);
+  showWelcome();
+  renderConvList();
+}
+
+async function switchConversation(id) {
+  currentConvId = id;
+  sessionPermissions = { allowAll: false, allowedTools: new Set() };
+  renderConvList();
+  let conv = conversations[id];
+  if (!conv) return;
+
+  // Load full conversation data if history is missing
+  if (!conv.history || conv.history.length === 0) {
+    try {
+      const res = await fetch(`/api/conversations/${id}`);
+      const full = await res.json();
+      // Map server-side 'messages' to frontend 'history' if needed
+      if (full.messages && !full.history) {
+        full.history = full.messages;
+      }
+      Object.assign(conv, full);
+      conversations[id] = conv;
+    } catch {}
+  }
+
+  if (conv.history && conv.history.length > 0) {
+    showConvState();
+    renderMessages(conv);
+  } else {
+    showWelcome();
+  }
+  updateTopbarTitle();
+  updateConvSummary();
+}
+
+function deleteConversation(id, e) {
+  e.stopPropagation();
+  fetch(`/api/conversations/${id}`, { method: 'DELETE' }).catch(() => {});
+  delete conversations[id];
+  if (currentConvId === id) { currentConvId = null; showWelcome(); }
+  renderConvList();
+}
+
+function renderConvList() {
+  const el = document.getElementById('conv-list');
+  const sorted = Object.values(conversations).sort((a, b) => (b.created || 0) - (a.created || 0));
+  el.innerHTML = sorted.map(c => {
+    const time = c.created ? new Date(c.created).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const model = c.model || '';
+    const modelShort = model.replace('claude-', '').replace('gpt-', '').split('-').slice(0, 2).join('-');
+    return `
+    <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" onclick="switchConversation('${c.id}')">
+      <div class="conv-meta">
+        <span class="title">${escHtml(c.title || '新对话')}</span>
+        <span class="conv-time">${time}${modelShort ? ' · ' + modelShort : ''}</span>
+      </div>
+      <button class="delete-btn" onclick="deleteConversation('${c.id}', event)" title="删除">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+async function autoTitle(conv) {
+  const text = conv.history.map(m => `${m.role}: ${m.content}`).join('\n').slice(0, 500);
+  try {
+    const res = await fetch('/api/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    conv.title = data.title || conv.history[0]?.content.slice(0, 40) || '新对话';
+  } catch {
+    conv.title = conv.history[0]?.content.slice(0, 40) || '新对话';
+  }
+  renderConvList();
+  saveConv(conv);
+  updateTopbarTitle();
+}
+
+function saveConv(conv) {
+  fetch(`/api/conversations/${conv.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(conv)
+  }).catch(() => {});
+}
+
+function updateTopbarTitle() {
+  const el = document.getElementById('topbar-title');
+  if (!el) return;
+  const conv = conversations[currentConvId];
+  el.textContent = conv && conv.title !== '新对话' ? conv.title : '';
+}
+
+function updateConvSummary() {
+  const el = document.getElementById('conv-summary');
+  if (!el) return;
+  const conv = conversations[currentConvId];
+  if (conv && conv.title && conv.title !== '新对话') {
+    el.textContent = conv.title;
+    el.classList.add('visible');
+  } else {
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+}
+
+// ===== UI STATE =====
+function showWelcome() {
+  document.getElementById('welcome-state').classList.remove('hidden');
+  document.getElementById('conv-state').classList.remove('active');
+  document.getElementById('messages-inner').innerHTML = '';
+  setTimeout(() => document.getElementById('welcome-textarea')?.focus(), 50);
+}
+
+function showConvState() {
+  document.getElementById('welcome-state').classList.add('hidden');
+  document.getElementById('conv-state').classList.add('active');
+  setTimeout(() => document.getElementById('chat-textarea')?.focus(), 100);
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+function togglePanel() { document.getElementById('tools-panel').classList.toggle('open'); }
+
+function switchTab(tabId) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const tabs = document.querySelectorAll('.panel-tab');
+  const sections = ['tab-system', 'tab-claude-md', 'tab-params'];
+  const idx = sections.indexOf(tabId);
+  if (idx >= 0) tabs[idx].classList.add('active');
+}
+
+// ===== MESSAGES =====
+function renderMessages(conv) {
+  const inner = document.getElementById('messages-inner');
+  inner.innerHTML = '';
+  (conv.history || []).forEach((msg, i) => {
+    const el = appendMessage(msg.role, msg.content, false);
+    if (msg.role === 'assistant' && msg.blocks && msg.blocks.length > 0) {
+      // Render agentic blocks
+      const container = createAgenticContainer();
+      let hasText = false;
+      msg.blocks.forEach(block => {
+        if (block.type === 'tool_use') {
+          appendToolBlock(container, { tool_use_id: block.id, name: block.name, input: block.input });
+          // Mark as done since this is a replay
+          const toolBlock = container.lastElementChild;
+          if (toolBlock && toolBlock.classList.contains('tool-block')) {
+            const statusEl = toolBlock.querySelector('.tool-status');
+            if (statusEl) { statusEl.className = 'tool-status done'; statusEl.textContent = '完成'; }
+            toolBlock.classList.remove('waiting');
+            const confirmBar = toolBlock.querySelector('.tool-confirm-bar');
+            if (confirmBar) confirmBar.remove();
+          }
+        } else if (block.type === 'tool_result') {
+          updateToolResult(container, { tool_use_id: block.id, output: block.output, is_error: block.is_error });
+        }
+      });
+      // Also render the text content if any
+      if (msg.content) {
+        const seg = document.createElement('div');
+        seg.className = 'text-segment markdown-body';
+        seg.innerHTML = renderMarkdown(msg.content);
+        container.insertBefore(seg, container.firstChild);
+      }
+      const contentEl = el.querySelector('.msg-content');
+      const bodyEl = el.querySelector('.msg-body');
+      if (bodyEl) bodyEl.innerHTML = '';
+      if (bodyEl) bodyEl.appendChild(container);
+    } else if (msg.role === 'assistant') {
+      finalizeAssistantMessage(el, msg.content, i);
+    }
+  });
+  scrollToBottom();
+}
+
+function appendMessage(role, content, isStream = false) {
+  const inner = document.getElementById('messages-inner');
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const avatarLabel = role === 'user' ? '你' : 'AI';
+  const nameLabel = role === 'user' ? '你' : getCurrentAIName();
+  div.innerHTML = `
+    <div class="msg-row">
+      <div class="msg-avatar ${role}">${avatarLabel}</div>
+      <div class="msg-content">
+        <div class="msg-meta">
+          <span class="msg-name ${role}">${nameLabel}</span>
+          <span class="msg-time">${time}</span>
+          ${isStream ? '<span class="streaming-dot"></span>' : ''}
+        </div>
+        <div class="msg-body">${isStream ? '' : renderMarkdown(content)}</div>
+      </div>
+    </div>
+  `;
+  inner.appendChild(div);
+  scrollToBottom();
+  return div;
+}
+
+function updateStreamMessage(el, text) {
+  if (!el) return;
+  const body = el.querySelector('.msg-body');
+  if (body) body.innerHTML = renderMarkdown(text);
+}
+
+function finalizeAssistantMessage(el, text, msgIndex) {
+  if (!el) return;
+  const dot = el.querySelector('.streaming-dot');
+  if (dot) dot.remove();
+  const body = el.querySelector('.msg-body');
+  if (body) body.innerHTML = renderMarkdown(text);
+
+  if (el.querySelector('.msg-actions')) return;
+  const idx = msgIndex !== undefined ? msgIndex : -1;
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  actions.innerHTML = `
+    <button class="msg-action-btn" onclick="acceptMsg(this)" title="接受">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      接受
+    </button>
+    <button class="msg-action-btn" onclick="rejectMsg(this)" title="拒绝">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      拒绝
+    </button>
+    <button class="msg-action-btn" onclick="regenerateMsg(this, ${idx})" title="重新生成">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      重新生成
+    </button>
+    <button class="msg-action-btn" onclick="copyMsg(this)" title="复制">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      复制
+    </button>
+  `;
+  const content = el.querySelector('.msg-content');
+  content.appendChild(actions);
+}
+
+function acceptMsg(btn) {
+  const actions = btn.closest('.msg-actions');
+  actions.querySelectorAll('.msg-action-btn').forEach(b => b.classList.remove('accepted','rejected'));
+  btn.classList.add('accepted');
+  showToast('已接受');
+}
+
+function rejectMsg(btn) {
+  const actions = btn.closest('.msg-actions');
+  actions.querySelectorAll('.msg-action-btn').forEach(b => b.classList.remove('accepted','rejected'));
+  btn.classList.add('rejected');
+  const body = btn.closest('.message').querySelector('.msg-body');
+  body.style.opacity = '0.35';
+  showToast('已拒绝');
+}
+
+function regenerateMsg(btn, msgIndex) {
+  if (isStreaming) return;
+  const conv = conversations[currentConvId];
+  if (!conv || !conv.history) return;
+
+  // Find the last user message before this assistant message
+  let userMsgIdx = -1;
+  for (let i = conv.history.length - 1; i >= 0; i--) {
+    if (conv.history[i].role === 'user') { userMsgIdx = i; break; }
+  }
+  if (userMsgIdx < 0) return;
+
+  const userMsg = conv.history[userMsgIdx];
+  // Remove everything after the user message
+  conv.history = conv.history.slice(0, userMsgIdx + 1);
+  renderMessages(conv);
+  showConvState();
+
+  // Re-send
+  const model = document.getElementById('model-select').value;
+  localStorage.setItem('lastModel', model);
+  conv.model = model;
+  const argsText = document.getElementById('extra-args').value.trim();
+  const parsedArgs = argsText ? argsText.split('\n').map(a => a.trim()).filter(Boolean) : [];
+
+  isStreaming = true;
+  streamingConvId = currentConvId;
+  updateSendBtn();
+  ws.send(JSON.stringify({
+    type: 'chat',
+    conversationId: currentConvId,
+    message: userMsg.content,
+    model,
+    history: conv.history.slice(0, -1),
+    images: userMsg.images || [],
+    systemPrompt: systemPrompt || undefined,
+    extraArgs: parsedArgs.length > 0 ? parsedArgs : undefined
+  }));
+}
+
+function copyMsg(btn) {
+  const body = btn.closest('.message').querySelector('.msg-body');
+  navigator.clipboard.writeText(body.textContent).then(() => {
+    showToast('已复制到剪贴板');
+  });
+}
+
+// ===== SENDING =====
+function sendFromWelcome() {
+  const ta = document.getElementById('welcome-textarea');
+  const text = ta.value.trim();
+  if (!text && pendingImages.length === 0) return;
+  if (!currentConvId) newConversation();
+  showConvState();
+  ta.value = '';
+  doSend(text);
+}
+
+function sendMessage() {
+  const ta = document.getElementById('chat-textarea');
+  const text = ta.value.trim();
+  if (!text && pendingImages.length === 0) return;
+  if (isStreaming) return;
+  ta.value = '';
+  ta.style.height = 'auto';
+  doSend(text);
+}
+
+function doSend(text) {
+  if (!currentConvId) newConversation();
+  const conv = conversations[currentConvId];
+  if (!conv.history) conv.history = [];
+
+  const images = pendingImages.map(img => ({ base64: img.base64, mime: img.mime }));
+  conv.history.push({ role: 'user', content: text, images });
+  appendMessage('user', text);
+  clearImagePreviews();
+
+  const model = document.getElementById('model-select').value;
+  localStorage.setItem('lastModel', model);
+  conv.model = model;
+  const argsText = document.getElementById('extra-args').value.trim();
+  const parsedArgs = argsText ? argsText.split('\n').map(a => a.trim()).filter(Boolean) : [];
+
+  isStreaming = true;
+  streamingConvId = currentConvId;
+  updateSendBtn();
+  ws.send(JSON.stringify({
+    type: 'chat',
+    conversationId: currentConvId,
+    message: text,
+    model,
+    history: conv.history.slice(0, -1),
+    images,
+    systemPrompt: systemPrompt || undefined,
+    extraArgs: parsedArgs.length > 0 ? parsedArgs : undefined
+  }));
+  saveConv(conv);
+}
+
+function updateSendBtn() {
+  const btn = document.getElementById('send-btn');
+  if (btn) btn.disabled = isStreaming;
+}
+
+// ===== IMAGE HANDLING =====
+function handleFileSelect(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      pendingImages.push({ dataUrl, base64: dataUrl.split(',')[1], mime: file.type });
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+
+function renderImagePreviews() {
+  ['welcome-img-preview', 'chat-img-preview'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    c.innerHTML = pendingImages.map((img, i) => `
+      <div class="image-preview-item">
+        <img src="${img.dataUrl}" alt="预览">
+        <button class="remove-img" onclick="removeImage(${i})">&times;</button>
+      </div>
+    `).join('');
+  });
+}
+
+function removeImage(idx) { pendingImages.splice(idx, 1); renderImagePreviews(); }
+function clearImagePreviews() { pendingImages = []; renderImagePreviews(); }
+
+// ===== SETTINGS =====
+function saveSystemPrompt() {
+  systemPrompt = document.getElementById('system-prompt').value;
+  localStorage.setItem('systemPrompt', systemPrompt);
+  showToast('系统提示词已保存');
+}
+
+async function saveClaudeMd() {
+  try {
+    await fetch('/api/claude-md', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: claudeMdPath, content: document.getElementById('claude-md-content').value })
+    });
+    showToast('CLAUDE.md 已保存');
+  } catch { showToast('保存失败'); }
+}
+
+async function saveCliParams() {
+  const argsText = document.getElementById('extra-args').value.trim();
+  const args = argsText ? argsText.split('\n').map(a => a.trim()).filter(Boolean) : [];
+  const workDir = document.getElementById('work-dir').value.trim();
+  try {
+    await fetch('/api/cli-params', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extraArgs: args, workDir: workDir || undefined })
+    });
+    showToast('CLI 参数已保存');
+  } catch { showToast('保存失败'); }
+}
+
+// ===== MARKDOWN =====
+function renderMarkdown(text) {
+  if (!text) return '';
+  try {
+    marked.setOptions({
+      highlight: (code, lang) => {
+        if (lang && hljs.getLanguage(lang)) return hljs.highlight(code, { language: lang }).value;
+        return hljs.highlightAuto(code).value;
+      },
+      breaks: true, gfm: true
+    });
+    let html = marked.parse(text);
+    html = html.replace(/<pre><code class="language-(\w+)">/g,
+      '<pre><div class="code-header"><span>$1</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div><code class="language-$1">');
+    html = html.replace(/<pre><code>/g,
+      '<pre><div class="code-header"><span>代码</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div><code>');
+    return html;
+  } catch { return escHtml(text); }
+}
+
+function copyCode(btn) {
+  const code = btn.closest('pre').querySelector('code');
+  navigator.clipboard.writeText(code.textContent).then(() => {
+    btn.textContent = '已复制';
+    setTimeout(() => btn.textContent = '复制', 1500);
+  });
+}
+
+// ===== UTILS =====
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 200) + 'px'; }
+function scrollToBottom() { const el = document.getElementById('messages'); if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 50); }
+function handleWelcomeKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendFromWelcome(); } }
+function handleChatKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'status-toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+init();
+</script>
+</body>
+</html>

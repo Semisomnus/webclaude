@@ -1,0 +1,32 @@
+{
+  "claude": {
+    "label": "Claude",
+    "cmd": "claude",
+    "args": [
+      "--model",
+      "{model}"
+    ],
+    "models": [
+      "claude-sonnet-4-6",
+      "claude-opus-4-6",
+      "claude-haiku-4-5-20251001"
+    ]
+  },
+  "codex": {
+    "label": "Codex",
+    "cmd": "codex",
+    "args": [
+      "exec",
+      "-m",
+      "{model}",
+      "--skip-git-repo-check",
+      "--json"
+    ],
+    "format": "codex-json",
+    "models": [
+      "gpt-5.3-codex",
+      "gpt-5.3-codex-xhigh",
+      "gpt-5.2"
+    ]
+  }
+}
