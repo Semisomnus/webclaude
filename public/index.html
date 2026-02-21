@@ -806,6 +806,55 @@ body {
 }
 .tool-detail.open ~ .tool-header .tool-chevron,
 .tool-block.expanded .tool-chevron { transform: rotate(90deg); }
+
+/* ===== PLAN MODE ===== */
+.tool-block.plan-mode { border-left-color: #8ab4d8; }
+.tool-block.plan-mode .tool-icon { color: #8ab4d8; }
+.plan-content {
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.12);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.plan-content .msg-body { font-size: 13.5px; line-height: 1.7; }
+.plan-prompts {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: rgba(138,180,216,0.05);
+}
+.plan-prompts-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8ab4d8;
+  margin-bottom: 8px;
+}
+.plan-prompt-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.plan-prompt-item input[type="checkbox"] {
+  accent-color: #8ab4d8;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+.plan-prompt-item label {
+  cursor: pointer;
+  flex: 1;
+}
+.plan-prompt-item .prompt-tool {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
 </style>
 </head>
 <body>
@@ -926,7 +975,8 @@ let claudeMdPath = '';
 // Session-level permission state (reset on new conversation)
 let sessionPermissions = {
   allowAll: false,
-  allowedTools: new Set()
+  allowedTools: new Set(),
+  allowedPrompts: []  // from ExitPlanMode pre-approved operations
 };
 
 // Tool name Chinese mapping
@@ -935,8 +985,25 @@ const TOOL_NAMES = {
   Bash: '执行命令', Glob: '搜索文件', Grep: '搜索内容',
   WebFetch: '获取网页', WebSearch: '搜索网络',
   Task: '子任务', TodoWrite: '写入待办',
-  NotebookEdit: '编辑笔记本'
+  NotebookEdit: '编辑笔记本',
+  EnterPlanMode: '进入规划模式', ExitPlanMode: '退出规划模式'
 };
+
+// Tool groups: approving one tool in a group auto-approves all tools in that group
+const TOOL_GROUPS = {
+  PlanMode: ['EnterPlanMode', 'ExitPlanMode'],
+  FileOps: ['Read', 'Write', 'Edit'],
+  Search: ['Glob', 'Grep'],
+  Web: ['WebFetch', 'WebSearch'],
+  Tasks: ['Task', 'TodoWrite']
+};
+
+function getToolGroup(toolName) {
+  for (const [group, tools] of Object.entries(TOOL_GROUPS)) {
+    if (tools.includes(toolName)) return tools;
+  }
+  return null;
+}
 
 function getToolDisplayName(name) {
   return TOOL_NAMES[name] || name;
@@ -1052,6 +1119,27 @@ function appendTextDelta(container, delta) {
   seg.querySelectorAll('pre code').forEach(b => { if (!b._hl) { hljs.highlightElement(b); b._hl = true; } });
 }
 
+// Unified auto-approve check: allowAll > allowedTools (with group) > allowedPrompts
+function shouldAutoApprove(toolName, toolInput) {
+  if (sessionPermissions.allowAll) return true;
+  if (sessionPermissions.allowedTools.has(toolName)) return true;
+  // Check if tool is in same group as an already-approved tool
+  const group = getToolGroup(toolName);
+  if (group) {
+    for (const t of group) {
+      if (sessionPermissions.allowedTools.has(t)) return true;
+    }
+  }
+  // Check allowedPrompts matching
+  if (toolName === 'Bash' && toolInput) {
+    const cmd = typeof toolInput === 'string' ? toolInput : (toolInput.command || toolInput.description || JSON.stringify(toolInput));
+    for (const ap of sessionPermissions.allowedPrompts) {
+      if (ap.tool === 'Bash' && cmd.toLowerCase().includes(ap.prompt.toLowerCase())) return true;
+    }
+  }
+  return false;
+}
+
 function finalizeTextSegments(container) {
   container.querySelectorAll('.text-segment').forEach(seg => {
     if (seg._rawText) {
@@ -1069,8 +1157,13 @@ function appendToolBlock(container, data) {
   block.dataset.toolUseId = toolUseId;
   block.dataset.toolName = toolName;
 
+  // Plan mode tools get special styling
+  if (toolName === 'EnterPlanMode' || toolName === 'ExitPlanMode') {
+    block.classList.add('plan-mode');
+  }
+
   // Check session permissions to decide if we auto-approve or show prompt
-  const autoApprove = sessionPermissions.allowAll || sessionPermissions.allowedTools.has(toolName);
+  const autoApprove = shouldAutoApprove(toolName, data.input);
   const statusClass = autoApprove ? 'running' : 'waiting';
   const statusText = autoApprove ? '自动批准' : '等待确认';
   if (!autoApprove) block.classList.add('waiting');
@@ -1097,6 +1190,14 @@ function appendToolBlock(container, data) {
     autoBar.textContent = sessionPermissions.allowAll ? '✓ 已自动批准（全部自动执行）' : `✓ 已自动批准（${getToolDisplayName(toolName)}）`;
     block.appendChild(autoBar);
     sendToolResponse(toolUseId, true);
+  } else if (toolName === 'ExitPlanMode') {
+    // ExitPlanMode: defer rendering until content_block_stop (input may stream in)
+    block.dataset.pendingPlan = 'true';
+    // Show a placeholder while streaming
+    const placeholder = document.createElement('div');
+    placeholder.className = 'tool-confirm-bar';
+    placeholder.innerHTML = `<span style="color:var(--text-muted);font-size:12px;">⏳ 正在接收计划内容...</span>`;
+    block.appendChild(placeholder);
   } else {
     // Show 4-button permission bar
     const confirmBar = document.createElement('div');
@@ -1208,10 +1309,16 @@ function approveOnce(toolUseId, btnEl) {
 }
 
 function approveToolType(toolUseId, toolName, btnEl) {
+  // Add the tool and all tools in its group
   sessionPermissions.allowedTools.add(toolName);
+  const group = getToolGroup(toolName);
+  if (group) {
+    group.forEach(t => sessionPermissions.allowedTools.add(t));
+  }
   sendToolResponse(toolUseId, true);
-  resolveToolBlock(toolUseId, true, `已允许（同类：${getToolDisplayName(toolName)}）`, btnEl);
-  // Auto-approve any other pending blocks of the same tool type
+  const groupLabel = group ? group.map(t => getToolDisplayName(t)).join('、') : getToolDisplayName(toolName);
+  resolveToolBlock(toolUseId, true, `已允许（同类：${groupLabel}）`, btnEl);
+  // Auto-approve any other pending blocks of the same tool group
   autoApprovePending(toolName);
 }
 
@@ -1234,7 +1341,7 @@ function autoApprovePending(toolName) {
     const id = block.dataset.toolUseId;
     const name = block.dataset.toolName;
     if (!id) return;
-    if (sessionPermissions.allowAll || (toolName && name === toolName)) {
+    if (shouldAutoApprove(name)) {
       sendToolResponse(id, true);
       block.classList.remove('waiting');
       const statusEl = block.querySelector('.tool-status');
@@ -1243,6 +1350,93 @@ function autoApprovePending(toolName) {
       if (bar) bar.innerHTML = `<span style="color:var(--green);font-size:12px;">✓ 已自动批准</span>`;
     }
   });
+}
+
+// ===== EXIT PLAN MODE SPECIAL RENDERING =====
+
+function renderExitPlanModeUI(block) {
+  const toolUseId = block.dataset.toolUseId;
+  block.dataset.pendingPlan = '';
+
+  // Parse the accumulated input to get plan content and allowedPrompts
+  let planInput = {};
+  const inputEl = block.querySelector('.tool-input');
+  const rawInput = currentToolInputAccum[toolUseId] || (inputEl ? inputEl.textContent : '');
+  try {
+    planInput = JSON.parse(rawInput);
+  } catch {
+    // Input might not be valid JSON; try to use as-is
+    planInput = {};
+  }
+
+  // Remove the placeholder bar
+  const placeholder = block.querySelector('.tool-confirm-bar');
+  if (placeholder) placeholder.remove();
+
+  // Read the plan file content (plan is stored in a file, ExitPlanMode signals completion)
+  // The plan content is shown from the text segments already rendered before this tool block
+  // ExitPlanMode's input has allowedPrompts array
+
+  const allowedPrompts = planInput.allowedPrompts || [];
+
+  // Render allowedPrompts checkboxes if any
+  if (allowedPrompts.length > 0) {
+    const promptsDiv = document.createElement('div');
+    promptsDiv.className = 'plan-prompts';
+    let promptsHtml = '<div class="plan-prompts-title">预批准操作列表</div>';
+    allowedPrompts.forEach((ap, i) => {
+      const toolLabel = ap.tool ? getToolDisplayName(ap.tool) : '';
+      const promptText = ap.prompt || '';
+      promptsHtml += `
+        <div class="plan-prompt-item">
+          <input type="checkbox" id="plan-prompt-${toolUseId}-${i}" checked data-tool="${escapeHtml(ap.tool || '')}" data-prompt="${escapeHtml(promptText)}">
+          <label for="plan-prompt-${toolUseId}-${i}">${escapeHtml(promptText)}</label>
+          ${toolLabel ? `<span class="prompt-tool">${escapeHtml(toolLabel)}</span>` : ''}
+        </div>
+      `;
+    });
+    promptsDiv.innerHTML = promptsHtml;
+    block.appendChild(promptsDiv);
+  }
+
+  // Show plan-specific 3-button bar
+  const confirmBar = document.createElement('div');
+  confirmBar.className = 'tool-confirm-bar';
+  confirmBar.innerHTML = `
+    <button class="tool-confirm-btn accept" onclick="approvePlan('${toolUseId}', false, this)">✓ 批准计划</button>
+    <button class="tool-confirm-btn accept-session" onclick="approvePlan('${toolUseId}', true, this)">✓ 批准并允许同类</button>
+    <button class="tool-confirm-btn reject" onclick="rejectTool('${toolUseId}', this)">✗ 拒绝计划</button>
+  `;
+  block.appendChild(confirmBar);
+  scrollToBottom();
+}
+
+function approvePlan(toolUseId, allowSimilar, btnEl) {
+  const block = btnEl.closest('.tool-block');
+
+  // Collect checked allowedPrompts
+  if (block) {
+    block.querySelectorAll('.plan-prompt-item input[type="checkbox"]:checked').forEach(cb => {
+      const tool = cb.dataset.tool;
+      const prompt = cb.dataset.prompt;
+      if (tool && prompt) {
+        sessionPermissions.allowedPrompts.push({ tool, prompt });
+      }
+    });
+  }
+
+  if (allowSimilar) {
+    // Add PlanMode group tools
+    const group = getToolGroup('ExitPlanMode');
+    if (group) group.forEach(t => sessionPermissions.allowedTools.add(t));
+    sendToolResponse(toolUseId, true);
+    resolveToolBlock(toolUseId, true, '已批准计划（允许同类）', btnEl);
+    autoApprovePending();
+  } else {
+    sendToolResponse(toolUseId, true);
+    resolveToolBlock(toolUseId, true, '已批准计划', btnEl);
+    autoApprovePending();
+  }
 }
 
 function escapeHtml(str) {
@@ -1354,7 +1548,13 @@ function handleWSMessage(msg) {
       break;
 
     case 'content_block_stop':
-      // Content block finished — no special handling needed
+      // Content block finished — render ExitPlanMode UI if pending
+      if (currentAgenticContainer) {
+        const pendingPlanBlock = currentAgenticContainer.querySelector('.tool-block[data-pending-plan="true"]');
+        if (pendingPlanBlock) {
+          renderExitPlanModeUI(pendingPlanBlock);
+        }
+      }
       break;
 
     case 'message_delta':
@@ -1438,7 +1638,7 @@ function handleWSMessage(msg) {
 function newConversation() {
   const id = 'conv_' + Date.now();
   conversations[id] = { id, title: '新对话', history: [], created: Date.now() };
-  sessionPermissions = { allowAll: false, allowedTools: new Set() };
+  sessionPermissions = { allowAll: false, allowedTools: new Set(), allowedPrompts: [] };
   streamingConvId = null;
   isStreaming = false;
   switchConversation(id);
@@ -1448,7 +1648,7 @@ function newConversation() {
 
 async function switchConversation(id) {
   currentConvId = id;
-  sessionPermissions = { allowAll: false, allowedTools: new Set() };
+  sessionPermissions = { allowAll: false, allowedTools: new Set(), allowedPrompts: [] };
   renderConvList();
   let conv = conversations[id];
   if (!conv) return;
