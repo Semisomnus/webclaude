@@ -317,7 +317,7 @@ wss.on('connection', (ws) => {
 
       let args;
       if (isClaudeStreamMode) {
-        args = ['--output-format', 'stream-json', '--input-format', 'stream-json', '--verbose', '--permission-mode', 'plan', '--model', model];
+        args = ['--output-format', 'stream-json', '--input-format', 'stream-json', '--verbose', '--permission-mode', 'bypassPermissions', '--model', model];
         if (systemPrompt) {
           args.push('--system-prompt', systemPrompt);
         }
